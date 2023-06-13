@@ -12,7 +12,7 @@ import (
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
- 	ctx, cancel := context.WithTimeout(context.Background(), 7 * time.Second)
+ 	ctx, cancel := context.WithTimeout(context.Background(), 13 * time.Second)
 	wg := sync.WaitGroup{}
 	wg.Add(4)
 
