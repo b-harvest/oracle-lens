@@ -1,0 +1,184 @@
+package ol
+
+import (
+	"context"
+	"fmt"
+	"sync"
+	"time"
+
+	oracleTypes "bharvest.io/oracle-lens/types/oracle"
+	"google.golang.org/grpc"
+)
+
+type UmeeOracle struct {
+	validator string
+	conn *grpc.ClientConn
+	accept_list chan oracleTypes.DenomList
+	aggregate_vote chan oracleTypes.ExchangeRateTuples
+	slash_window chan uint64
+	window_progress chan uint64
+	miss_count chan uint64
+}
+
+func NewUmeeOracle(validator string, grpc_url string) *UmeeOracle {
+	conn, err := grpc.Dial(grpc_url, grpc.WithInsecure())
+	if err != nil {
+		panic(err)
+	}
+
+	return &UmeeOracle{
+		validator,
+		conn,
+		make(chan oracleTypes.DenomList),
+		make(chan oracleTypes.ExchangeRateTuples),
+		make(chan uint64),
+		make(chan uint64),
+		make(chan uint64),
+	}
+}
+
+func (umee *UmeeOracle) Check(ctx context.Context) {
+	wgCheck := sync.WaitGroup{}
+	wgCheck.Add(4)
+
+	go umee.queryOracleParams(ctx, &wgCheck)
+	go umee.queryWindow(ctx, &wgCheck)
+	go umee.queryVote(ctx, &wgCheck)
+	go umee.queryMissCnt(ctx, &wgCheck)
+
+	var r1 oracleTypes.DenomList
+	var r2 oracleTypes.ExchangeRateTuples
+	var r3, r4, r5 uint64
+	for {
+		select {
+		case result := <-umee.accept_list:
+			r1 = result
+		case result := <-umee.aggregate_vote:
+			r2 = result
+		case result := <-umee.slash_window:
+			r3 = result
+		case result := <- umee.window_progress:
+			r4 = result
+		case result := <- umee.miss_count:
+			r5 = result
+		case <- ctx.Done():
+			umee.conn.Close()
+			close(umee.accept_list)
+			close(umee.aggregate_vote)
+			close(umee.slash_window)
+			close(umee.window_progress)
+			close(umee.miss_count)
+
+			fmt.Println(r1)
+			fmt.Println(r2)
+			fmt.Println(r3)
+			fmt.Println(r4)
+			fmt.Println(r5)
+			// return r1, r2, r3, r4
+		}
+	}
+}
+
+func (umee *UmeeOracle) queryOracleParams(ctx context.Context, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	client := oracleTypes.NewQueryClient(umee.conn)
+	resp, err := client.Params(
+		ctx,
+		&oracleTypes.QueryParams{},
+	)
+	if err != nil {
+		Error(err)
+		return
+	}
+
+	accepList := resp.Params.AcceptList
+	slashWindow := resp.Params.SlashWindow
+	fmt.Println(len(accepList))
+	fmt.Println(slashWindow)
+	//select {
+//	case umee.nonce <- :
+//		return
+//	case <- ctx.Done():
+//		Error("Time out")
+//		return
+//	}
+}
+
+func (umee *UmeeOracle) queryWindow(ctx context.Context, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	client := oracleTypes.NewQueryClient(umee.conn)
+	resp, err := client.SlashWindow(
+		ctx,
+		&oracleTypes.QuerySlashWindow{},
+	)
+	if err != nil {
+		Error(err)
+		return
+	}
+
+	fmt.Println(resp.WindowProgress)
+	//select {
+//	case umee.nonce <- :
+//		return
+//	case <- ctx.Done():
+//		Error("Time out")
+//		return
+//	}
+}
+
+func (umee *UmeeOracle) queryMissCnt(ctx context.Context, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	client := oracleTypes.NewQueryClient(umee.conn)
+	resp, err := client.MissCounter(
+		ctx,
+		&oracleTypes.QueryMissCounter{ValidatorAddr: umee.validator},
+	)
+	if err != nil {
+		Error(err)
+		return
+	}
+
+	fmt.Println(resp.MissCounter)
+	//select {
+//	case umee.nonce <- :
+//		return
+//	case <- ctx.Done():
+//		Error("Time out")
+//		return
+//	}
+}
+
+func (umee *UmeeOracle) queryVote(ctx context.Context, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	client := oracleTypes.NewQueryClient(umee.conn)
+
+	fmt.Println("************************************************************")
+	for i:=0; i<5; i++ {
+		<- time.After(time.Second*2)
+		resp, err := client.AggregateVote(
+			ctx,
+			&oracleTypes.QueryAggregateVote{ValidatorAddr: umee.validator},
+		)
+
+		if resp != nil {
+			fmt.Println(resp.AggregateVote.ExchangeRateTuples)
+			break
+		}
+		if err != nil {
+			Info(err)
+		}
+	}
+	fmt.Println("************************************************************")
+
+	//select {
+//	case umee.nonce <- :
+//		return
+//	case <- ctx.Done():
+//		Error("Time out")
+//		return
+//	}
+}
