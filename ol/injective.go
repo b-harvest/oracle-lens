@@ -2,6 +2,7 @@ package ol
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	contract "bharvest.io/oracle-lens/ol/gravity-contract"
@@ -37,7 +38,14 @@ func NewInjective(orchestrator string, grpc_url string) *Injective {
 	}
 }
 
-func (injective *Injective) Check(ctx context.Context) (int, int, uint64, uint64) {
+func (injective *Injective) Check(ctx context.Context) (int, int, uint64, uint64, error) {
+	defer injective.conn.Close()
+	defer close(injective.batch)
+	defer close(injective.valset)
+	defer close(injective.nonce)
+	defer close(injective.eth_nonce)
+
+
 	wgCheck := sync.WaitGroup{}
 	wgCheck.Add(4)
 	go injective.queryLastPendingBatch(ctx, &wgCheck)
@@ -45,27 +53,19 @@ func (injective *Injective) Check(ctx context.Context) (int, int, uint64, uint64
  	go injective.queryLastEventNonce(ctx, &wgCheck)
 	go injective.queryEthLastEventNonce(ctx, &wgCheck)
 
-	var r1, r2 int
-	var r3, r4 uint64
-	for {
-		select {
-		case result := <-injective.batch:
-			r1 = result
-		case result := <-injective.valset:
-			r2 = result
-		case result := <-injective.nonce:
-			r3 = result
-		case result := <- injective.eth_nonce:
-			r4 = result
-		case <- ctx.Done():
-			injective.conn.Close()
-			close(injective.batch)
-			close(injective.valset)
-			close(injective.nonce)
-			close(injective.eth_nonce)
-			return r1, r2, r3, r4
-		}
+	var batch, valset int
+	var nonce, eth_nonce uint64
+	select {
+	case result := <-injective.batch:
+		batch = result
+		valset = <- injective.valset
+		nonce = <- injective.nonce
+		eth_nonce = <- injective.eth_nonce
+		return batch, valset, nonce, eth_nonce, nil
+	case <- ctx.Done():
+		return 0, 0, 0, 0, errors.New("Time out")
 	}
+
 }
 
 func (injective *Injective) queryLastPendingBatch(ctx context.Context, wg *sync.WaitGroup) {

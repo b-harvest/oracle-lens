@@ -2,6 +2,7 @@ package ol
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -41,7 +42,15 @@ func NewUmeeOracle(validator string, grpc_url string) *UmeeOracle {
 	}
 }
 
-func (umee *UmeeOracle) Check(ctx context.Context) (string, float64, float64, []string, []string) {
+func (umee *UmeeOracle) Check(ctx context.Context) (string, float64, float64, []string, []string, error) {
+	defer umee.conn.Close()
+	defer close(umee.accept_list)
+	defer close(umee.aggregate_vote)
+	defer close(umee.window)
+	defer close(umee.min_uptime)
+	defer close(umee.window_progress)
+	defer close(umee.miss_count)
+
 	wgCheck := sync.WaitGroup{}
 	wgCheck.Add(4)
 
@@ -50,53 +59,37 @@ func (umee *UmeeOracle) Check(ctx context.Context) (string, float64, float64, []
 	go umee.queryVote(ctx, &wgCheck)
 	go umee.queryMissCnt(ctx, &wgCheck)
 
-	var r1 oracleTypes.DenomList
-	var r2 oracleTypes.ExchangeRateTuples
-	var r4 float64
-	var r3, r5, r6 uint64
-	for {
-		select {
-		case result := <-umee.accept_list:
-			r1 = result
-		case result := <-umee.aggregate_vote:
-			r2 = result
-		case result := <-umee.window:
-			r3 = result
-		case result := <- umee.min_uptime:
-			r4 = result * 100
-		case result := <- umee.window_progress:
-			r5 = result
-		case result := <- umee.miss_count:
-			r6 = result
-		case <- ctx.Done():
-			umee.conn.Close()
-			close(umee.accept_list)
-			close(umee.aggregate_vote)
-			close(umee.window)
-			close(umee.min_uptime)
-			close(umee.window_progress)
-			close(umee.miss_count)
+	select {
+	case result := <-umee.accept_list:
+		accept_list_temp := result
+		voted_list_temp :=  <- umee.aggregate_vote
+		window := <- umee.window
+		min_uptime := <- umee.min_uptime * 100
+		window_progress := <- umee.window_progress
+		miss_count := <- umee.miss_count
 
-			uptime := (float64(r5-r6) / float64(r5)) * 100
-			status := fmt.Sprintf("%d/%d\t%.2f%%\t  %d", r3, r5, uptime, r6)
+		uptime := (float64(window_progress-miss_count) / float64(window_progress)) * 100
+		status := fmt.Sprintf("%d/%d\t%.2f%%\t  %d", window, window_progress, uptime, miss_count)
 
-			l := len(r1)
-			accept_list := make([]string, l, l)
-			for i, item := range r1 {
-				accept_list[i] = strings.ToUpper(item.SymbolDenom)
-			}
-			sort.Strings(accept_list)
-
-			l = len(r2)
-			voted_list := make([]string, l, l)
-			for i, item := range r2 {
-				voted_list[i] = item.Denom
-			}
-			sort.Strings(voted_list)
-
-			return status, uptime, r4, accept_list, voted_list
+		l := len(accept_list_temp)
+		accept_list := make([]string, l, l)
+		for i, item := range accept_list_temp {
+			accept_list[i] = strings.ToUpper(item.SymbolDenom)
 		}
+		sort.Strings(accept_list)
+
+		l = len(voted_list_temp)
+		voted_list := make([]string, l, l)
+		for i, item := range voted_list_temp {
+			voted_list[i] = item.Denom
+		}
+		sort.Strings(voted_list)
+
+		return status, uptime, min_uptime, accept_list, voted_list, nil
+	case <- ctx.Done():
+		return "", 0, 0, nil, nil, errors.New("Time out")
 	}
+
 }
 
 func (umee *UmeeOracle) queryOracleParams(ctx context.Context, wg *sync.WaitGroup) {
@@ -178,7 +171,7 @@ func (umee *UmeeOracle) queryVote(ctx context.Context, wg *sync.WaitGroup) {
 
 	client := oracleTypes.NewQueryClient(umee.conn)
 
-	for i:=0; i<5; i++ {
+	for i:=0; i<10; i++ {
 		resp, err := client.AggregateVote(
 			ctx,
 			&oracleTypes.QueryAggregateVote{ValidatorAddr: umee.validator},

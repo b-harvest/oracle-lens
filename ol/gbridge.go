@@ -2,9 +2,10 @@ package ol
 
 import (
 	"context"
+	"errors"
 	"sync"
 
-	"bharvest.io/oracle-lens/types/gbridge"
+	types "bharvest.io/oracle-lens/types/gbridge"
 	"google.golang.org/grpc"
 )
 
@@ -33,7 +34,13 @@ func NewGBridge(orchestrator string, grpc_url string) *Gravity {
 	}
 }
 
-func (gravity *Gravity) Check(ctx context.Context) (int, int, uint64, uint64) {
+func (gravity *Gravity) Check(ctx context.Context) (int, int, uint64, uint64, error) {
+	defer gravity.conn.Close()
+	defer close(gravity.batch)
+	defer close(gravity.valset)
+	defer close(gravity.nonce)
+	defer close(gravity.eth_nonce)
+
 	wgCheck := sync.WaitGroup{}
 	wgCheck.Add(4)
 	go gravity.queryLastPendingBatch(ctx, &wgCheck)
@@ -41,27 +48,19 @@ func (gravity *Gravity) Check(ctx context.Context) (int, int, uint64, uint64) {
  	go gravity.queryLastEventNonce(ctx, &wgCheck)
 	go gravity.queryEthLastEventNonce(ctx, &wgCheck)
 
-	var r1, r2 int
-	var r3, r4 uint64
-	for {
-		select {
-		case result := <-gravity.batch:
-			r1 = result
-		case result := <-gravity.valset:
-			r2 = result
-		case result := <-gravity.nonce:
-			r3 = result
-		case result := <- gravity.eth_nonce:
-			r4 = result
-		case <- ctx.Done():
-			gravity.conn.Close()
-			close(gravity.batch)
-			close(gravity.valset)
-			close(gravity.nonce)
-			close(gravity.eth_nonce)
-			return r1, r2, r3, r4
-		}
+	var batch, valset int
+	var nonce, eth_nonce uint64
+	select {
+	case result := <-gravity.batch:
+		batch = result
+		valset = <- gravity.valset
+		nonce = <- gravity.nonce
+		eth_nonce = <- gravity.eth_nonce
+		return batch, valset, nonce, eth_nonce, nil
+	case <- ctx.Done():
+		return 0, 0, 0, 0, errors.New("Time out")
 	}
+
 }
 
 func (gravity *Gravity) queryLastPendingBatch(ctx context.Context, wg *sync.WaitGroup) {

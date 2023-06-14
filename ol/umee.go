@@ -2,6 +2,7 @@ package ol
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	contract "bharvest.io/oracle-lens/ol/gravity-contract"
@@ -37,7 +38,13 @@ func NewUmee(orchestrator string, grpc_url string) *Umee {
 	}
 }
 
-func (umee *Umee) Check(ctx context.Context) (int, int, uint64, uint64) {
+func (umee *Umee) Check(ctx context.Context) (int, int, uint64, uint64, error) {
+	defer umee.conn.Close()
+	defer close(umee.batch)
+	defer close(umee.valset)
+	defer close(umee.nonce)
+	defer close(umee.eth_nonce)
+
 	wgCheck := sync.WaitGroup{}
 	wgCheck.Add(4)
 
@@ -46,27 +53,17 @@ func (umee *Umee) Check(ctx context.Context) (int, int, uint64, uint64) {
 	go umee.queryLastEventNonce(ctx, &wgCheck)
 	go umee.queryEthLastEventNonce(ctx, &wgCheck)
 
-	var r1, r2 int
-	var r3, r4 uint64
-	for {
-		select {
-		case result := <-umee.batch:
-			r1 = result
-		case result := <-umee.valset:
-			r2 = result
-		case result := <-umee.nonce:
-			r3 = result
-		case result := <- umee.eth_nonce:
-			r4 = result
-		case <- ctx.Done():
-			umee.conn.Close()
-			close(umee.batch)
-			close(umee.valset)
-			close(umee.nonce)
-			close(umee.eth_nonce)
-			return r1, r2, r3, r4
-		}
+	select {
+	case result := <-umee.batch:
+		batch := result
+		valset := <- umee.valset
+		nonce := <- umee.nonce
+		eth_nonce := <- umee.eth_nonce
+		return batch, valset, nonce, eth_nonce, nil
+	case <- ctx.Done():
+		return 0, 0, 0, 0, errors.New("Time out")
 	}
+
 }
 
 func (umee *Umee) queryLastPendingBatch(ctx context.Context, wg *sync.WaitGroup) {
