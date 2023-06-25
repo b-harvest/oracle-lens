@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 
+	"bharvest.io/oracle-lens/log"
 	contract "bharvest.io/oracle-lens/ol/gravity-contract"
 	types "bharvest.io/oracle-lens/types/gbridge"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -75,7 +76,7 @@ func (umee *Umee) queryLastPendingBatch(ctx context.Context, wg *sync.WaitGroup)
 		&types.QueryLastPendingBatchRequestByAddrRequest{Address: umee.orchestrator},
 	)
 	if err != nil {
-		Error(err)
+		log.Error(err, "umee.go", "queryLastPendingBatch()")
 		return
 	}
 
@@ -83,7 +84,7 @@ func (umee *Umee) queryLastPendingBatch(ctx context.Context, wg *sync.WaitGroup)
 	case umee.batch <- resp.Size():
 		return
 	case <- ctx.Done():
-		Error(err)
+		log.Error(err, "umee.go", "queryLastPendingBatch()")
 		return
 	}
 }
@@ -97,7 +98,7 @@ func (umee *Umee) queryLastPendingValset(ctx context.Context, wg *sync.WaitGroup
 		&types.QueryLastPendingValsetRequestByAddrRequest{Address: umee.orchestrator},
 	)
 	if err != nil {
-		Error(err)
+		log.Error(err, "umee.go", "queryLastPendingValset()")
 		return
 	}
 
@@ -105,7 +106,7 @@ func (umee *Umee) queryLastPendingValset(ctx context.Context, wg *sync.WaitGroup
 	case umee.valset <- resp.Size():
 		return
 	case <- ctx.Done():
-		Error("Time out")
+		log.Error("Time out", "umee.go", "queryLastPendingValset()")
 		return
 	}
 }
@@ -119,7 +120,7 @@ func (umee *Umee) queryLastEventNonce(ctx context.Context, wg *sync.WaitGroup) {
 		&types.QueryLastEventNonceByAddrRequest{Address: umee.orchestrator},
 	)
 	if err != nil {
-		Error(err)
+		log.Error(err, "umee.go", "queryLastEventNonce()")
 		return
 	}
 
@@ -127,7 +128,7 @@ func (umee *Umee) queryLastEventNonce(ctx context.Context, wg *sync.WaitGroup) {
 	case umee.nonce <- resp.GetEventNonce():
 		return
 	case <- ctx.Done():
-		Error("Time out")
+		log.Error("Time out", "umee.go", "queryLastEventNonce()")
 		return
 	}
 }
@@ -137,20 +138,20 @@ func (umee *Umee) queryEthLastEventNonce(ctx context.Context, wg *sync.WaitGroup
 
 	client, err := ethclient.Dial("https://cloudflare-eth.com")
     if err != nil {
-		Error(err)
+		log.Error(err, "umee.go", "queryEthLastEventNonce()")
 		return
     }
 
 	contract_address := common.HexToAddress("0xb564ac229E9D6040a9f1298B7211b9e79eE05a2c")
 	instance, err := contract.NewContract(contract_address, client)
 	if err != nil {
-		Error(err)
+		log.Error(err, "umee.go", "queryEthLastEventNonce()")
 		return
 	}
 
 	last_event_nonce, err := instance.StateLastEventNonce(&bind.CallOpts{})
 	if err != nil {
-		Error(err)
+		log.Error(err, "umee.go", "queryEthLastEventNonce()")
 		return
 	}
 
@@ -158,7 +159,7 @@ func (umee *Umee) queryEthLastEventNonce(ctx context.Context, wg *sync.WaitGroup
 	case umee.eth_nonce <- last_event_nonce.Uint64():
 		return
 	case <- ctx.Done():
-		Error("Time out")
+		log.Error("Time out", "umee.go", "queryEthLastEventNonce()")
 		return
 	}
 }

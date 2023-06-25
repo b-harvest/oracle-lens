@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"sync"
+
+	"bharvest.io/oracle-lens/log"
 )
 
 func CheckUmee(ctx context.Context, wg *sync.WaitGroup) {
@@ -11,7 +13,7 @@ func CheckUmee(ctx context.Context, wg *sync.WaitGroup) {
 	chain := NewUmee("umee1m2wqppm7pujtusd6u6zt0k92rd50e80uk7esz8", "umee-grpc.polkachu.com:13690")
 	batch, valset, nonce, eth_nonce, err := chain.Check(ctx)
 	if err != nil {
-		Error(err)
+		log.Error(err, "monitor.go", "CheckUmee()")
 		return
 	}
 
@@ -39,7 +41,7 @@ func CheckUmeeOracle(ctx context.Context, wg *sync.WaitGroup) {
 	chain := NewUmeeOracle("umeevaloper1g7ddsx97qj4tfvm7u22xe5h6y3efdup6spsxnw", "umee-grpc.polkachu.com:13690")
 	status, uptime, min_uptime, accept_list, voted_list, err := chain.Check(ctx)
 	if err != nil {
-		Error(err)
+		log.Error(err, "monitor.go", "CheckUmeeOracle()")
 		return
 	}
 
@@ -68,7 +70,7 @@ func CheckInjective(ctx context.Context, wg *sync.WaitGroup) {
  	chain := NewInjective("inj18uvllr7jvqgre49vtx7w4gs73v5d7dunen2mz5", "injective-grpc.polkachu.com:14390")
  	batch, valset, nonce,eth_nonce, err := chain.Check(ctx)
 	if err != nil {
-		Error(err)
+		log.Error(err, "monitor.go", "CheckInjective()")
 		return
 	}
 
@@ -96,7 +98,7 @@ func CheckGbridge(ctx context.Context, wg *sync.WaitGroup) {
  	chain := NewGBridge("gravity1uhuwpa0dssdrx95a8hajc4tcaknxl4d8p8vrr4", "gravity-grpc.polkachu.com:14290")
  	batch, valset, nonce,eth_nonce, err := chain.Check(ctx)
 	if err != nil {
-		Error(err)
+		log.Error(err, "monitor.go", "CheckGbridge()")
 		return
 	}
 

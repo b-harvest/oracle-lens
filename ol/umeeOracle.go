@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"bharvest.io/oracle-lens/log"
 	oracleTypes "bharvest.io/oracle-lens/types/oracle"
 	"google.golang.org/grpc"
 )
@@ -101,14 +102,14 @@ func (umee *UmeeOracle) queryOracleParams(ctx context.Context, wg *sync.WaitGrou
 		&oracleTypes.QueryParams{},
 	)
 	if err != nil {
-		Error(err)
+		log.Error(err, "umeeOracle.go", "queryOracleParams()")
 		return
 	}
 
 	
 	min_uptime, err := resp.Params.MinValidPerWindow.Float64()
 	if err != nil {
-		Error(err)
+		log.Error(err, "umeeOracle.go", "queryOracleParams()")
 		return
 	}
 	select {
@@ -117,7 +118,7 @@ func (umee *UmeeOracle) queryOracleParams(ctx context.Context, wg *sync.WaitGrou
 		umee.min_uptime <- min_uptime
 		return
 	case <- ctx.Done():
-		Error("Time out")
+		log.Error("Time out", "umeeOracle.go", "queryOracleParams()")
 		return
 	}
 }
@@ -131,7 +132,7 @@ func (umee *UmeeOracle) queryWindow(ctx context.Context, wg *sync.WaitGroup) {
 		&oracleTypes.QuerySlashWindow{},
 	)
 	if err != nil {
-		Error(err)
+		log.Error(err, "umeeOracle.go", "queryWindow()")
 		return
 	}
 
@@ -139,7 +140,7 @@ func (umee *UmeeOracle) queryWindow(ctx context.Context, wg *sync.WaitGroup) {
 	case umee.window_progress <- resp.WindowProgress:
 		return
 	case <- ctx.Done():
-		Error("Time out")
+		log.Error("Time out", "umeeOracle.go", "queryWindow()")
 		return
 	}
 }
@@ -153,7 +154,7 @@ func (umee *UmeeOracle) queryMissCnt(ctx context.Context, wg *sync.WaitGroup) {
 		&oracleTypes.QueryMissCounter{ValidatorAddr: umee.validator},
 	)
 	if err != nil {
-		Error(err)
+		log.Error(err, "umeeOracle.go", "queryMissCnt()")
 		return
 	}
 
@@ -161,7 +162,7 @@ func (umee *UmeeOracle) queryMissCnt(ctx context.Context, wg *sync.WaitGroup) {
 	case umee.miss_count <- resp.MissCounter:
 		return
 	case <- ctx.Done():
-		Error("Time out")
+		log.Error("Time out", "umeeOracle.go", "queryMissCnt()")
 		return
 	}
 }
@@ -183,13 +184,13 @@ func (umee *UmeeOracle) queryVote(ctx context.Context, wg *sync.WaitGroup) {
 		}
 		if err != nil {
 			<- time.After(time.Second*2)
-			Info(err)
+			log.Info(err, "umeeOracle.go", "queryVote()")
 		}
 	}
 
 	select {
 	case <- ctx.Done():
-		Error("Time out")
+		log.Error("Time out", "umeeOracle.go", "queryVote()")
 		return
 	}
 }

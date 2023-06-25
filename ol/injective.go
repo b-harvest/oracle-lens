@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 
+	"bharvest.io/oracle-lens/log"
 	contract "bharvest.io/oracle-lens/ol/gravity-contract"
 	types "bharvest.io/oracle-lens/types/peggy"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -77,7 +78,7 @@ func (injective *Injective) queryLastPendingBatch(ctx context.Context, wg *sync.
 		&types.QueryLastPendingBatchRequestByAddrRequest{Address: injective.orchestrator},
 	)
 	if err != nil {
-		Error(err)
+		log.Error(err, "injective.go", "queryLastPendingBatch()")
 		return
 	}
 
@@ -85,7 +86,7 @@ func (injective *Injective) queryLastPendingBatch(ctx context.Context, wg *sync.
 	case injective.batch <- resp.Size():
 		return
 	case <- ctx.Done():
-		Error(err)
+		log.Error(err, "injective.go", "queryLastPendingBatch()")
 		return
 	}
 }
@@ -99,7 +100,7 @@ func (injective *Injective) queryLastPendingValset(ctx context.Context, wg *sync
 		&types.QueryLastPendingValsetRequestByAddrRequest{Address: injective.orchestrator},
 	)
 	if err != nil {
-		Error(err)
+		log.Error(err, "injective.go", "queryLastPendingValset()")
 		return
 	}
 
@@ -107,7 +108,7 @@ func (injective *Injective) queryLastPendingValset(ctx context.Context, wg *sync
 	case injective.valset <- resp.Size():
 		return
 	case <- ctx.Done():
-		Error("Time out")
+		log.Error("Time out", "injective.go", "queryLastPendingValset()")
 		return
 	}
 }
@@ -121,7 +122,7 @@ func (injective *Injective) queryLastEventNonce(ctx context.Context, wg *sync.Wa
 		&types.QueryLastEventByAddrRequest{Address: injective.orchestrator},
 	)
 	if err != nil {
-		Error(err)
+		log.Error(err, "injective.go", "queryLastEventNonce()")
 		return
 	}
 
@@ -129,7 +130,7 @@ func (injective *Injective) queryLastEventNonce(ctx context.Context, wg *sync.Wa
 	case injective.nonce <- resp.GetLastClaimEvent().GetEthereumEventNonce():
 		return
 	case <- ctx.Done():
-		Error("Time out")
+		log.Error("Time out", "injective.go", "queryLastEventNonce()")
 		return
 	}
 }
@@ -139,20 +140,20 @@ func (injective *Injective) queryEthLastEventNonce(ctx context.Context, wg *sync
 
 	client, err := ethclient.Dial("https://cloudflare-eth.com")
     if err != nil {
-		Error(err)
+		log.Error(err, "injective.go", "queryEthLastEventNonce()")
 		return
     }
 
 	contract_address := common.HexToAddress("0xF955C57f9EA9Dc8781965FEaE0b6A2acE2BAD6f3")
 	instance, err := contract.NewContract(contract_address, client)
 	if err != nil {
-		Error(err)
+		log.Error(err, "injective.go", "queryEthLastEventNonce()")
 		return
 	}
 
 	last_event_nonce, err := instance.StateLastEventNonce(&bind.CallOpts{})
 	if err != nil {
-		Error(err)
+		log.Error(err, "injective.go", "queryEthLastEventNonce()")
 		return
 	}
 
@@ -160,7 +161,7 @@ func (injective *Injective) queryEthLastEventNonce(ctx context.Context, wg *sync
 	case injective.eth_nonce <- last_event_nonce.Uint64():
 		return
 	case <- ctx.Done():
-		Error("Time out")
+		log.Error("Time out", "injective.go", "queryEthLastEventNonce()")
 		return
 	}
 }

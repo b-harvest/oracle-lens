@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 
+	"bharvest.io/oracle-lens/log"
 	types "bharvest.io/oracle-lens/types/gbridge"
 	"google.golang.org/grpc"
 )
@@ -72,7 +73,7 @@ func (gravity *Gravity) queryLastPendingBatch(ctx context.Context, wg *sync.Wait
 		&types.QueryLastPendingBatchRequestByAddrRequest{Address: gravity.orchestrator},
 	)
 	if err != nil {
-		Error(err)
+		log.Error(err, "umee.go", "queryLastPendingBatch()")
 		return
 	}
 
@@ -80,7 +81,7 @@ func (gravity *Gravity) queryLastPendingBatch(ctx context.Context, wg *sync.Wait
 	case gravity.batch <- resp.Size():
 		return
 	case <- ctx.Done():
-		Error(err)
+		log.Error(err, "umee.go", "queryLastPendingBatch()")
 		return
 	}
 }
@@ -94,7 +95,7 @@ func (gravity *Gravity) queryLastPendingValset(ctx context.Context, wg *sync.Wai
 		&types.QueryLastPendingValsetRequestByAddrRequest{Address: gravity.orchestrator},
 	)
 	if err != nil {
-		Error(err)
+		log.Error(err, "umee.go", "queryLastPendingValset()")
 		return
 	}
 
@@ -102,7 +103,7 @@ func (gravity *Gravity) queryLastPendingValset(ctx context.Context, wg *sync.Wai
 	case gravity.valset <- resp.Size():
 		return
 	case <- ctx.Done():
-		Error("Time out")
+		log.Error("Time out", "umee.go", "queryLastPendingValset()")
 		return
 	}
 }
@@ -116,7 +117,7 @@ func (gravity *Gravity) queryLastEventNonce(ctx context.Context, wg *sync.WaitGr
 		&types.QueryLastEventNonceByAddrRequest{Address: gravity.orchestrator},
 	)
 	if err != nil {
-		Error(err)
+		log.Error(err, "umee.go", "queryLastEventNonce()")
 		return
 	}
 
@@ -124,7 +125,7 @@ func (gravity *Gravity) queryLastEventNonce(ctx context.Context, wg *sync.WaitGr
 	case gravity.nonce <- resp.GetEventNonce():
 		return
 	case <- ctx.Done():
-		Error("Time out")
+		log.Error("Time out", "umee.go", "queryLastEventNonce()")
 		return
 	}
 }
@@ -138,7 +139,7 @@ func (gravity *Gravity) queryEthLastEventNonce(ctx context.Context, wg *sync.Wai
 		&types.QueryLastObservedEthNonceRequest{},
 	)
 	if err != nil {
-		Error(err)
+		log.Error(err, "umee.go", "queryLastEventNonce()")
 		return
 	}
 
@@ -146,7 +147,7 @@ func (gravity *Gravity) queryEthLastEventNonce(ctx context.Context, wg *sync.Wai
 	case gravity.eth_nonce <- resp.GetNonce():
 		return
 	case <- ctx.Done():
-		Error("Time out")
+		log.Error("Time out", "gravity.go", "queryEthLastEventNonce()")
 		return
 	}
 }
