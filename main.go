@@ -13,8 +13,8 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	for {
-		switch {
-		select <- time.Tick(10 * time.Second):
+		select {
+		case <- time.Tick(time.Hour):
 			ctx, cancel := context.WithTimeout(context.Background(), 21 * time.Second)
 			wg := sync.WaitGroup{}
 			wg.Add(4)
