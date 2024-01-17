@@ -3,68 +3,58 @@ package log
 import (
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog/pkgerrors"
 )
 
-var Logger zerolog.Logger
-var logChan chan func()
+var eventQueue chan func()
 
 func init() {
-	// logger setup
-	output := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC1123}
-	output.FormatLevel = func(i interface{}) string {
-		return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
+	// Logger setup
+	output := zerolog.ConsoleWriter{
+			Out: os.Stderr,
+			TimeFormat: time.RFC1123,
 	}
-	output.FormatMessage = func(i interface{}) string {
-		return fmt.Sprintf("%s", i)
-	}
-	// For file name
-	output.FormatFieldName = func(i interface{}) string {
-		return fmt.Sprintf("%s:", i)
-	}
-	// For function name
-	output.FormatFieldValue = func(i interface{}) string {
-		return fmt.Sprintf("%s", i)
-	}
+	log.Logger = log.Output(output)
 
-	Logger = zerolog.New(output).With().Timestamp().Logger()
-	logChan = make(chan func())
+	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
+	zerolog.ErrorStackFieldName = "trace"
 
-	// for thread safe
+	eventQueue = make(chan func())
+
+	// For thread safe
 	go func() {
-		for log := range logChan {
-			log()
+		for event := range eventQueue {
+			event()
 		}
 	}()
 }
 
-func pushLog(log func()) {
-	logChan <- log
+func enqueue(event func()) {
+	eventQueue <- event
 }
 
-func Info(msg any, fileName string, funcName string) {
-	message := fmt.Sprint(msg)
-	log := func() {
-		Logger.Info().Str(fileName, funcName).Msg(message)
+func Info(msg string) {
+	event := func() {
+		log.Info().Msg(msg)
 	}
-	pushLog(log)
+	enqueue(event)
 }
 
-func Error(msg any, fileName string, funcName string) {
-	message := fmt.Sprint(msg)
-	log := func() {
-		Logger.Error().Str(fileName, funcName).Msg(message)
+func Error(err error) {
+	event := func() {
+		log.Error().Stack().Err(err).Msg("")
 	}
-	pushLog(log)
+	enqueue(event)
 }
 
-func Debug(msg any, fileName string, funcName string) {
+func Debug(msg any) {
 	message := fmt.Sprint(msg)
-	log := func() {
-		Logger.Debug().Str(fileName, funcName).Msg(message)
+	event := func() {
+		log.Debug().Msg(message)
 	}
-	pushLog(log)
+	enqueue(event)
 }

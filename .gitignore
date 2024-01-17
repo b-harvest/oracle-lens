@@ -1,1 +1,9 @@
+# OS
 .DS_Store
+*.swp
+
+# Config
+config.toml
+
+# Go
+oracle-lens

@@ -1,8 +1,15 @@
 # Oracle Lens
 
-Oracle Lens is program for monitoring to program which bring off-chain data to on-chain such as Oracle, Bridge, ETC.
+Oracle Lens is monitoring program for operator of program which bring off-chain data to on-chain such as Oracle, Bridge, ETC.
 
-## Quick guide
+## Monitoring Support Chains
+
+- Injective
+  - Peggo
+- Umee
+  - Oracle
+
+## Quick Guide
 
 1. Build
 
@@ -10,8 +17,15 @@ Oracle Lens is program for monitoring to program which bring off-chain data to o
 go build
 ```
 
-2. Execute
+2. Configure config.toml file
 
 ```bash
-./oracle-lens
+# You can get a example of config.toml file by below command
+cp config.toml.example config.toml
+```
+
+3. Execute
+
+```bash
+./oracle-lens -config config.toml
 ```

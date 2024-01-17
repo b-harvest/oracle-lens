@@ -1,29 +1,40 @@
 package log_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
 	"bharvest.io/oracle-lens/log"
 )
 
-func TestInfo(t *testing.T) {
-	log.Info("Info log test", "log_test.go", "TestInfo()")
+func TestAllLog(t *testing.T) {
+	// Thread safe test
+	timeout := time.After(5*time.Second)
+	done := make(chan bool)
 
-	// For not terminate test
-	time.Sleep(time.Second*1)
-}
+	go func() {
+		go log.Info("Info log test")
+		go log.Debug("Debug log test")
+		go log.Error(errors.New("Log test"))
+		log.Error(errors.New("Log test"))
+		log.Debug(struct{
+			name string
+			age int
+		}{
+			"Choi",
+			26,
+		})
 
-func TestError(t *testing.T) {
-	log.Error("Error log test", "log_test.go", "ErrorInfo()")
+		// Wait log printing
+		time.Sleep(3*time.Second)
 
-	// For not terminate test
-	time.Sleep(time.Second*1)
-}
+		done <- true
+	}()
 
-func TestDebug(t *testing.T) {
-	log.Debug("Debug log test", "log_test.go", "DebugInfo()")
-
-	// For not terminate test
-	time.Sleep(time.Second*1)
+	select {
+	case <- timeout:
+		t.Fatal("Timeout")
+	case <- done:
+	}
 }
