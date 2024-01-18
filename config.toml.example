@@ -11,9 +11,6 @@ listen_port = 8080
 enable = true
 grpc = "injective-grpc:9090"
 validator_acc = "inj1..."
-# Trigger an alarm, if nonce and observed nonce difference is greater than nonce_diff
-# eg. nonce_diff = 0 then nonce and observed nonce have to equal
-nonce_diff = 1
 
 [umee-oracle]
 enable = true

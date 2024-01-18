@@ -108,9 +108,19 @@ func (cfg *Config) CheckInjective(ctx context.Context) error {
 		check = false
 	}
 
-	diff := observedEventNonce - eventNonce
-	if diff > cfg.Injective.NonceDiff {
-		check = false
+	// Nonce could be different each other
+	// even though it doesn't any issue in peggo.
+	// So it have three chance for change status to false.
+	if observedEventNonce != eventNonce {
+		if server.GlobalState.InjectivePeggo.NonceFalseCount == 3 {
+			check = false
+		} else {
+			server.GlobalState.InjectivePeggo.NonceFalseCount += 1
+		}
+	} else {
+		// Set nonce false count to 0
+		// if nonce is same each other.
+		server.GlobalState.InjectivePeggo.NonceFalseCount = 0
 	}
 
 	server.GlobalState.InjectivePeggo.Status = check

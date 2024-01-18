@@ -13,7 +13,6 @@ type Config struct {
 		Enable       bool   `toml:"enable"`
 		GRPC         string `toml:"grpc"`
 		ValidatorAcc string `toml:"validator_acc"`
-		NonceDiff    uint64 `toml:"nonce_diff"`
 		Wallet       *wallet.Wallet
 	} `toml:"injective"`
 	UmeeOracle struct {
