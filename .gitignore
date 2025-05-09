@@ -7,3 +7,5 @@ config.toml
 
 # Go
 oracle-lens
+
+.idea/
