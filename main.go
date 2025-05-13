@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bharvest.io/oracle-lens/metrics"
 	"context"
 	"flag"
 	"fmt"
@@ -23,7 +24,7 @@ func main() {
 	ctx := context.Background()
 
 	cfgPath := flag.String("config", "", "Config file")
-    flag.Parse()
+	flag.Parse()
 	if *cfgPath == "" {
 		panic("Error: Please input config file path with -config flag.")
 	}
@@ -58,6 +59,8 @@ func main() {
 
 	tgTitle := fmt.Sprintf("🤖 Oracle Lens for %s 🤖", cfg.General.Network)
 	tg.SetTg(cfg.Tg.Enable, tgTitle, cfg.Tg.Token, cfg.Tg.ChatID)
+
+	metrics.Initialize(cfg.General.Network, cfg.Injective.Wallet.PrintAcc())
 
 	go server.Run(cfg.General.ListenPort)
 	for {
@@ -101,7 +104,6 @@ func PrePrepareForInjective(ctx context.Context, cfg *app.Config) error {
 
 	return nil
 }
-
 
 func PrePrepareForUmee(ctx context.Context, cfg *app.Config) error {
 	var err error
