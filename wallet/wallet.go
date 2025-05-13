@@ -26,6 +26,7 @@ func NewWallet(_ context.Context, addr string) (*Wallet, error) {
 	config.SetBech32PrefixForAccount(prefix, prefix+"pub")
 	config.SetBech32PrefixForValidator(prefix+"valoper", prefix+"valoperpub")
 	config.SetBech32PrefixForConsensusNode(prefix+"valcons", prefix+"valvalconspub")
+	config.Seal()
 
 	address, err := sdkTypes.GetFromBech32(addr, prefix)
 	if err != nil {
