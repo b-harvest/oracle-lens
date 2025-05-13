@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bharvest.io/oracle-lens/metrics"
 	"context"
 	"fmt"
 	"sync"
@@ -36,7 +37,7 @@ func (cfg *Config) CheckInjective(ctx context.Context) error {
 		defer wg.Done()
 
 		// Three re-checks with 2 seconds interval, because pending TXs can exist temporary
-		for i:=0; i<3; i++ {
+		for i := 0; i < 3; i++ {
 			pendingBatchSize, err = grpcQuery.GetLastPendingBatchSize(ctx, cfg.Injective.Wallet.PrintAcc())
 			if err != nil {
 				log.Error(err)
@@ -47,17 +48,17 @@ func (cfg *Config) CheckInjective(ctx context.Context) error {
 				break
 			}
 
-			time.Sleep(2*time.Second)
+			time.Sleep(2 * time.Second)
 		}
 	}()
-	
+
 	// For get # pending valset tx
 	var pendingValsetSize int
 	go func() {
 		defer wg.Done()
 
 		// Three re-checks with 2 seconds interval, because pending TXs can exist temporary
-		for i:=0; i<3; i++ {
+		for i := 0; i < 3; i++ {
 			pendingValsetSize, err = grpcQuery.GetLastPendingValsetSize(ctx, cfg.Injective.Wallet.PrintAcc())
 			if err != nil {
 				log.Error(err)
@@ -68,7 +69,7 @@ func (cfg *Config) CheckInjective(ctx context.Context) error {
 				break
 			}
 
-			time.Sleep(2*time.Second)
+			time.Sleep(2 * time.Second)
 		}
 	}()
 
@@ -99,8 +100,15 @@ func (cfg *Config) CheckInjective(ctx context.Context) error {
 	wg.Wait()
 
 	server.GlobalState.InjectivePeggo.PendingBatchSize = pendingBatchSize
+	metrics.SetInjectivePeggoPendingBatchSize(pendingBatchSize)
+
 	server.GlobalState.InjectivePeggo.PendingValsetSize = pendingValsetSize
+	metrics.SetInjectivePeggoPendingValsetSize(pendingValsetSize)
+
 	server.GlobalState.InjectivePeggo.Nonce = fmt.Sprintf("%d / %d", eventNonce, observedEventNonce)
+	metrics.SetInjectivePeggoLastEventNonce(eventNonce)
+
+	metrics.SetInjectivePeggoLastObservedNonce(observedEventNonce)
 
 	check := true
 
@@ -133,6 +141,6 @@ func (cfg *Config) CheckInjective(ctx context.Context) error {
 		log.Info(m)
 		tg.SendMsg(m)
 	}
-	
+
 	return nil
 }
