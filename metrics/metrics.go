@@ -48,11 +48,11 @@ func Initialize(c, a string) {
 }
 
 func SetInjectivePeggoPendingBatchSize(batchSize int) {
-	InjectivePeggoPendingBatchSize.With(prometheus.Labels{"chain": chain, "address": address}).Add(float64(batchSize))
+	InjectivePeggoPendingBatchSize.With(prometheus.Labels{"chain": chain, "address": address}).Set(float64(batchSize))
 }
 
 func SetInjectivePeggoPendingValsetSize(valsetSize int) {
-	InjectivePeggoPendingValsetSize.With(prometheus.Labels{"chain": chain, "address": address}).Add(float64(valsetSize))
+	InjectivePeggoPendingValsetSize.With(prometheus.Labels{"chain": chain, "address": address}).Set(float64(valsetSize))
 }
 
 func SetInjectivePeggoLastEventNonce(eventNonce uint64) {
